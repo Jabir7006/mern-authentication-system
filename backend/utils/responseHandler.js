@@ -1,18 +1,22 @@
 export const errorResponse = (
   res,
   statusCode = 404,
-  message = 'item not found'
+  message = "Item not found",
+  errors = null
 ) => {
-  return res.status(statusCode).json({
+  const response = {
     success: false,
     message,
-  });
+    ...(errors && { errors }),
+  };
+
+  return res.status(statusCode).json(response);
 };
 
 export const successResponse = (
   res,
   statusCode = 200,
-  message = '',
+  message = "",
   payload = {}
 ) => {
   return res.status(statusCode).json({

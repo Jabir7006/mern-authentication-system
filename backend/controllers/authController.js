@@ -1,12 +1,18 @@
 const User = require("../models/User");
 const { errorResponse, successResponse } = require("../utils/responseHandler");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
+const crypto = require("crypto");
+
 const {
   verificationEmailTemplate,
   verificationSuccessTemplate,
+  passwordResetTemplate,
+  passwordResetSuccessTemplate,
 } = require("../utils/emailTemplates");
 const generateJwtAndSetToCookie = require("../utils/generateJwtAndSetToCookie");
+const mailOptions = require("../utils/mailOptions");
 
 const registerUser = async (req, res, next) => {
   try {
@@ -37,14 +43,13 @@ const registerUser = async (req, res, next) => {
     ).toString();
 
     //send email
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
+    const emailOptions = mailOptions({
       to: email,
       subject: "Verify Your Email Address",
       text: `Your verification code is ${verificationCode}`,
       html: verificationEmailTemplate(name, verificationCode),
-    };
-    const emailSent = await sendEmail(mailOptions);
+    });
+    const emailSent = await sendEmail(emailOptions);
 
     if (!emailSent) {
       return errorResponse(
@@ -104,15 +109,14 @@ const verifyEmail = async (req, res, next) => {
     await user.save();
 
     // Send verification success email
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
+    const emailOptions = mailOptions({
       to: user.email,
       subject: "Email Verification Successful",
       text: `Hello ${user.name}, your email has been successfully verified.`,
       html: verificationSuccessTemplate(user.name),
-    };
+    });
 
-    await sendEmail(mailOptions);
+    await sendEmail(emailOptions);
 
     successResponse(
       res,
@@ -154,15 +158,14 @@ const resendVerificationCode = async (req, res, next) => {
     await user.save();
 
     // Send email with new verification code
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
+    const emailOptions = mailOptions({
       to: email,
       subject: "Verify Your Email Address",
       text: `Your new verification code is ${verificationCode}`,
       html: verificationEmailTemplate(user.name, verificationCode),
-    };
+    });
 
-    const emailSent = await sendEmail(mailOptions);
+    const emailSent = await sendEmail(emailOptions);
 
     if (!emailSent) {
       return errorResponse(
@@ -221,6 +224,98 @@ const checkAuth = async (req, res, next) => {
     next(error);
   }
 };
+
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return errorResponse(res, 400, "Email is required");
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return errorResponse(res, 404, "User not found");
+    }
+
+    const passwordResetToken = crypto.randomBytes(32).toString("hex");
+
+    // Send email with password reset link
+    const emailOptions = mailOptions({
+      to: user.email,
+      subject: "Reset Your Password",
+      text: `Hello ${user.name}, your password reset link is ${process.env.FRONTEND_URL}/reset-password/${passwordResetToken}`,
+      html: passwordResetTemplate(
+        user.name,
+        process.env.FRONTEND_URL + `/reset-password/${passwordResetToken}`
+      ),
+    });
+
+    const emailSent = await sendEmail(emailOptions);
+
+    if (!emailSent) {
+      return errorResponse(
+        res,
+        500,
+        "Failed to send password reset email. Please try again."
+      );
+    }
+
+    user.passwordResetToken = passwordResetToken;
+    user.passwordResetTokenExpiry = Date.now() + 1000 * 60 * 60; // 1 hour
+    await user.save();
+
+    successResponse(res, 200, "Password reset email sent");
+  } catch (error) {
+    next(error);
+  }
+};
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const { newPassword, confirmPassword } = req.body;
+    if (!token) {
+      return errorResponse(res, 400, "You must provide a password reset token");
+    }
+
+    if (!newPassword?.trim()) {
+      return errorResponse(res, 400, "You must provide a new password");
+    }
+
+    if (newPassword.trim() !== confirmPassword.trim()) {
+      return errorResponse(res, 400, "Passwords do not match");
+    }
+
+    const user = await User.findOne({
+      passwordResetToken: token,
+      passwordResetTokenExpiry: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return errorResponse(res, 400, "Invalid or expired password reset token");
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.passwordResetToken = null;
+    user.passwordResetTokenExpiry = null;
+    await user.save();
+
+    const emailOptions = mailOptions({
+      to: user.email,
+      subject: "Password Reset Successful",
+      html: passwordResetSuccessTemplate(user.name),
+    });
+
+    await sendEmail(emailOptions);
+
+    successResponse(res, 200, "Password reset successful");
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   verifyEmail,
@@ -228,4 +323,6 @@ module.exports = {
   loginUser,
   logoutUser,
   checkAuth,
+  forgotPassword,
+  resetPassword,
 };

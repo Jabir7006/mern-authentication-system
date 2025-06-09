@@ -1,4 +1,4 @@
-const { Schema, model } = require('mongoose');
+const { Schema, model } = require("mongoose");
 
 const userSchema = new Schema(
   {
@@ -22,8 +22,8 @@ const userSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ['superadmin', 'circularadmin', 'user'],
-      default: 'user',
+      enum: ["superadmin", "circularadmin", "user"],
+      default: "user",
     },
 
     lastLogin: {
@@ -33,6 +33,13 @@ const userSchema = new Schema(
     verified: {
       type: Boolean,
       default: false,
+    },
+
+    passwordResetToken: {
+      type: String,
+    },
+    passwordResetTokenExpiry: {
+      type: Date,
     },
 
     verificationCode: {
@@ -45,6 +52,6 @@ const userSchema = new Schema(
   { timestamps: true }
 );
 
-const User = model('User', userSchema);
+const User = model("User", userSchema);
 
 module.exports = User;

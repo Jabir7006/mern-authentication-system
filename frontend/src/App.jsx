@@ -14,7 +14,8 @@ import Dashboard from "./pages/Dashboard";
 import About from "./pages/About";
 import { useAuthStore } from "./store/authStore";
 import { useEffect } from "react";
-
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 const App = () => {
   const { isCheckingAuth, checkAuth } = useAuthStore();
 
@@ -86,6 +87,8 @@ const App = () => {
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
         </Route>
       </Routes>
     </BrowserRouter>

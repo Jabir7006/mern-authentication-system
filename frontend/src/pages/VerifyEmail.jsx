@@ -5,14 +5,13 @@ import { motion } from "framer-motion";
 import { Button } from "../components/ui/button";
 import { CheckCircle } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function VerificationPage() {
   const [verificationCode, setVerificationCode] = useState(Array(6).fill(""));
   const inputRefs = useRef([]);
   const [focusedInput, setFocusedInput] = useState(null);
   const { user, verifyEmail, isLoading, error } = useAuthStore();
-  const navigate = useNavigate();
 
   // Focus the first input on page load
   useEffect(() => {
@@ -127,9 +126,11 @@ export default function VerificationPage() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.9 }}
           >
-            <Button className="px-8 py-6 text-base font-medium bg-blue-500 hover:bg-blue-600">
-              CONTINUE
-            </Button>
+            <Link to="/">
+              <Button className="px-8 py-6 text-base font-medium bg-blue-500 hover:bg-blue-600">
+                CONTINUE
+              </Button>
+            </Link>
           </motion.div>
         </motion.div>
       </div>
@@ -287,7 +288,7 @@ export default function VerificationPage() {
                   ref={(el) => (inputRefs.current[index] = el)}
                   type="text"
                   inputMode="numeric"
-                  maxLength={6}
+                  maxLength={1}
                   value={digit}
                   onChange={(e) => {
                     handleInputChange(index, e.target.value);
